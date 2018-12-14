@@ -1,0 +1,100 @@
+---
+
+version: '3'
+
+networks:
+  elk_core: {}
+  services:
+    external:
+      name: 'services'
+
+services:
+  elasticsearch:
+    build:
+      context: './elasticsearch/'
+      args:
+        ELK_VERSION: $ELK_VERSION
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '5'
+    volumes:
+      - './elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro'
+      - 'elasticsearch_data:/usr/share/elasticsearch/data'
+    networks:
+      - 'elk_core'
+      - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:9200:9200"
+      - "${LISTEN_IP_ADDRESS}:9300:9300"
+    environment:
+      ES_JAVA_OPTS: '-Xmx1024m -Xms1024m'
+
+  elasticsearch_exporter:
+    image: 'justwatch/elasticsearch_exporter:1.0.2'
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '5'
+    command:
+      - '-es.uri=http://elasticsearch:9200'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:9108:9108"
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+
+  logstash:
+    build:
+      context: './logstash/'
+      args:
+        ELK_VERSION: $ELK_VERSION
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '5'
+    volumes:
+      - './logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro'
+      - './logstash/pipeline:/usr/share/logstash/pipeline:ro'
+    ports:
+      - "${LISTEN_IP_ADDRESS}5000:5000"
+      - "${LISTEN_IP_ADDRESS}6000:6000"
+    environment:
+      LS_JAVA_OPTS: '-Xmx1024m -Xms1024m'
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+      - 'services'
+
+  kibana:
+    build:
+      context: './kibana/'
+      args:
+        ELK_VERSION: $ELK_VERSION
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '5'
+    volumes:
+      - './kibana/config/:/usr/share/kibana/config:ro'
+    ports:
+      - "${LISTEN_IP_ADDRESS}5601:5601"
+    depends_on:
+      - 'elasticsearch'
+      - 'logstash'
+    networks:
+      - 'elk_core'
+      - 'services'
+
+volumes:
+  elasticsearch_data: {}
