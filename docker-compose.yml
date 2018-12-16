@@ -38,8 +38,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     command:
       - '-es.uri=http://elasticsearch:9200'
     ports:
@@ -58,8 +58,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     volumes:
       - './logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro'
       - './logstash/pipeline:/usr/share/logstash/pipeline:ro'
@@ -83,8 +83,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     volumes:
       - './kibana/config/:/usr/share/kibana/config:ro'
     ports:
