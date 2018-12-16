@@ -9,6 +9,44 @@ networks:
       name: 'services'
 
 services:
+  dejavu:
+    image: 'appbaseio/dejavu:2.0.5'
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    ports:
+      - "${LISTEN_IP_ADDRESS}:1358:1358"
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+      - 'services'
+
+  elastichq:
+    image: 'elastichq/elasticsearch-hq:release-v3.4.1'
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    command:
+      - '-es.uri=http://elasticsearch:9200'
+    volumes:
+      - 'elastichq_data:/src/db'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:9108:9108"
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+      - 'services'
+    environment:
+      HQ_DEFAULT_URL: 'http://elasticsearch:9200'
+
   elasticsearch:
     build:
       context: './elasticsearch/'
@@ -97,4 +135,5 @@ services:
       - 'services'
 
 volumes:
+  elastichq_data: {}
   elasticsearch_data: {}
