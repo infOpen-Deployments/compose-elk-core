@@ -9,6 +9,44 @@ networks:
       name: 'services'
 
 services:
+  dejavu:
+    image: 'appbaseio/dejavu:2.0.5'
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    ports:
+      - "${LISTEN_IP_ADDRESS}:1358:1358"
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+      - 'services'
+
+  elastichq:
+    image: 'elastichq/elasticsearch-hq:release-v3.4.1'
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    command:
+      - '-es.uri=http://elasticsearch:9200'
+    volumes:
+      - 'elastichq_data:/src/db'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:5000:5000"
+    depends_on:
+      - 'elasticsearch'
+    networks:
+      - 'elk_core'
+      - 'services'
+    environment:
+      HQ_DEFAULT_URL: 'http://elasticsearch:9200'
+
   elasticsearch:
     build:
       context: './elasticsearch/'
@@ -38,8 +76,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     command:
       - '-es.uri=http://elasticsearch:9200'
     ports:
@@ -58,8 +96,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     volumes:
       - './logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro'
       - './logstash/pipeline:/usr/share/logstash/pipeline:ro'
@@ -83,8 +121,8 @@ services:
     logging:
       driver: 'json-file'
       options:
-        max-size: '100m'
-        max-file: '5'
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     volumes:
       - './kibana/config/:/usr/share/kibana/config:ro'
     ports:
@@ -97,4 +135,5 @@ services:
       - 'services'
 
 volumes:
+  elastichq_data: {}
   elasticsearch_data: {}
