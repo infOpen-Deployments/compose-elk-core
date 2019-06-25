@@ -4,136 +4,207 @@ version: '3'
 
 networks:
   elk_core: {}
+  elk_node:
+    external:
+      name: 'elk_node'
   services:
     external:
       name: 'services'
 
 services:
   dejavu:
-    image: 'appbaseio/dejavu:2.0.5'
+    image: "${DEJAVU_IMAGE}:${DEJAVU_VERSION}"
     restart: 'unless-stopped'
     logging:
       driver: 'json-file'
       options:
         max-size: "${LOGGING_MAX_SIZE}"
         max-file: "${LOGGING_MAX_FILE}"
-    ports:
-      - "${LISTEN_IP_ADDRESS}:1358:1358"
     depends_on:
       - 'elasticsearch'
+    expose:
+      - '1358'
     networks:
       - 'elk_core'
       - 'services'
 
-  elastichq:
-    image: 'elastichq/elasticsearch-hq:release-v3.4.1'
+  elastalert:
+    image: "${ELASTALERT_IMAGE}:${ELASTALERT_VERSION}"
     restart: 'unless-stopped'
     logging:
       driver: 'json-file'
       options:
         max-size: "${LOGGING_MAX_SIZE}"
         max-file: "${LOGGING_MAX_FILE}"
-    command:
-      - '-es.uri=http://elasticsearch:9200'
-    volumes:
-      - 'elastichq_data:/src/db'
-    ports:
-      - "${LISTEN_IP_ADDRESS}:5000:5000"
     depends_on:
       - 'elasticsearch'
+    expose:
+      - '3030'
+      - '3333'
+    networks:
+      - 'elk_core'
+    volumes:
+      - 'elastalert_data:/opt/elastalert/server_data'
+      - './elastalert/config/config.json:/opt/elastalert/config.json'
+      - './elastalert/config/config.yaml:/opt/elastalert/config.yaml'
+      - './elastalert/rules:/opt/elastalert/rules'
+      - './elastalert/rule_templates:/opt/elastalert/rule_templates'
+
+  elastichq:
+    image: "${ELASTICHQ_IMAGE}:${ELASTICHQ_VERSION}"
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    depends_on:
+      - 'elasticsearch'
+    environment:
+      HQ_DEFAULT_URL: 'http://elasticsearch:9200'
+    expose:
+      - '5000'
     networks:
       - 'elk_core'
       - 'services'
-    environment:
-      HQ_DEFAULT_URL: 'http://elasticsearch:9200'
+    volumes:
+      - 'elastichq_data:/src/db'
 
   elasticsearch:
     build:
       context: './elasticsearch/'
       args:
-        ELK_VERSION: $ELK_VERSION
-    restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '100m'
-        max-file: '5'
-    volumes:
-      - './elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro'
-      - 'elasticsearch_data:/usr/share/elasticsearch/data'
-    networks:
-      - 'elk_core'
-      - 'services'
-    ports:
-      - "${LISTEN_IP_ADDRESS}:9200:9200"
-      - "${LISTEN_IP_ADDRESS}:9300:9300"
-    environment:
-      ES_JAVA_OPTS: '-Xmx1024m -Xms1024m'
-
-  elasticsearch_exporter:
-    image: 'justwatch/elasticsearch_exporter:1.0.2'
+        ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
     logging:
       driver: 'json-file'
       options:
         max-size: "${LOGGING_MAX_SIZE}"
         max-file: "${LOGGING_MAX_FILE}"
+    env_file:
+      - './env/elasticsearch.env'
+    networks:
+      - 'elk_core'
+      - 'elk_node'
+      - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:9200:9200"
+      - "${LISTEN_IP_ADDRESS}:9300:9300"
+    volumes:
+      - './elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro'
+      - 'elasticsearch_data:/usr/share/elasticsearch/data'
+
+  elasticsearch_exporter:
+    image: "${ELASTICSEARCH_EXPORTER_IMAGE}:${ELASTICSEARCH_EXPORTER_VERSION}"
     command:
       - '-es.uri=http://elasticsearch:9200'
-    ports:
-      - "${LISTEN_IP_ADDRESS}:9108:9108"
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
     depends_on:
       - 'elasticsearch'
     networks:
       - 'elk_core'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:9108:9108"
 
   logstash:
     build:
       context: './logstash/'
       args:
-        ELK_VERSION: $ELK_VERSION
+        ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
     logging:
       driver: 'json-file'
       options:
         max-size: "${LOGGING_MAX_SIZE}"
         max-file: "${LOGGING_MAX_FILE}"
+    depends_on:
+      - 'elasticsearch'
+    env_file:
+      - './env/logstash.env'
+    networks:
+      - 'elk_core'
+      - 'elk_node'
+      - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:5000:5000"
+      - "${LISTEN_IP_ADDRESS}:6000:6000"
     volumes:
       - './logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro'
       - './logstash/pipeline:/usr/share/logstash/pipeline:ro'
-    ports:
-      - "${LISTEN_IP_ADDRESS}5000:5000"
-      - "${LISTEN_IP_ADDRESS}6000:6000"
-    environment:
-      LS_JAVA_OPTS: '-Xmx1024m -Xms1024m'
-    depends_on:
-      - 'elasticsearch'
-    networks:
-      - 'elk_core'
-      - 'services'
 
   kibana:
     build:
       context: './kibana/'
       args:
-        ELK_VERSION: $ELK_VERSION
+        ELK_VERSION: "${ELK_VERSION}"
+        KIBANA_PLUGIN_ELASTALERT_VERSION: "${KIBANA_PLUGIN_ELASTALERT_VERSION}"
+        KIBANA_PLUGIN_ENHANCED_TABLE_VERSION: "${KIBANA_PLUGIN_ENHANCED_TABLE_VERSION}"
+        KIBANA_PLUGIN_LOGTRAIL_VERSION: "${KIBANA_PLUGIN_LOGTRAIL_VERSION}"
+        KIBANA_PLUGIN_WAZUH_VERSION: "${KIBANA_PLUGIN_WAZUH_VERSION}"
     restart: 'unless-stopped'
     logging:
       driver: 'json-file'
       options:
         max-size: "${LOGGING_MAX_SIZE}"
         max-file: "${LOGGING_MAX_FILE}"
-    volumes:
-      - './kibana/config/:/usr/share/kibana/config:ro'
-    ports:
-      - "${LISTEN_IP_ADDRESS}5601:5601"
     depends_on:
       - 'elasticsearch'
       - 'logstash'
+    expose:
+      - '5601'
     networks:
       - 'elk_core'
+      - 'elk_node'
       - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:5601:5601"
+    volumes:
+      - './kibana/config/:/usr/share/kibana/config:ro'
+
+  wazuh:
+    image: "${WAZUH_IMAGE}:${WAZUH_VERSION}"
+    restart: 'unless-stopped'
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: "${LOGGING_MAX_SIZE}"
+        max-file: "${LOGGING_MAX_FILE}"
+    depends_on:
+      - 'elasticsearch'
+      - 'logstash'
+    expose:
+      - '514/udp'
+      - '1514/udp'
+      - '1515/tcp'
+      - '1516/tcp'
+      - '55000/tcp'
+    networks:
+      elk_core:
+        aliases:
+          - 'elk_core.wazuh'
+      elk_node:
+        aliases:
+          - 'elk_node.wazuh'
+      services:
+        aliases:
+          - 'services.wazuh'
+    volumes:
+      - './wazuh/config/filebeat.yml:/etc/filebeat/filebeat.yml:ro'
+      - 'wazuh_filebeat_lib:/var/lib/filebeat'
+      - 'wazuh_filebeat_log:/var/log/filebeat'
+      - 'wazuh_ossec_data:/var/ossec/data'
+      - 'wazuh_postfix_etc:/etc/postfix'
 
 volumes:
+  elastalert_data: {}
   elastichq_data: {}
   elasticsearch_data: {}
+  wazuh_filebeat_lib: {}
+  wazuh_filebeat_log: {}
+  wazuh_ossec_data: {}
+  wazuh_postfix_etc: {}
