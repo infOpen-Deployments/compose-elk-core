@@ -1,48 +1,65 @@
 ---
 
-version: '3'
+version: '3.4'
+
+x-logging:
+  &default-logging
+  driver: 'json-file'
+  options:
+    max-size: "${LOGGING_MAX_SIZE}"
+    max-file: "${LOGGING_MAX_FILE}"
 
 networks:
-  elk_core: {}
-  elk_node:
+  elk-core: {}
+  elk-node:
     external:
-      name: 'elk_node'
+      name: 'elk-node'
   services:
     external:
       name: 'services'
 
 services:
-  dejavu:
-    image: "${DEJAVU_IMAGE}:${DEJAVU_VERSION}"
+  apm_server:
+    build:
+      context: './apm_server/'
+      args:
+        ELK_APM_SERVER_IMAGE_NAME: "${ELK_APM_SERVER_IMAGE_NAME}"
+        ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
+    expose:
+      - '8200'
+    networks:
+      - 'elk-core'
+      - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:8200:8200"
+    volumes:
+      - './apm_server/config/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro'
+
+  dejavu:
+    image: "${DEJAVU_IMAGE_NAME}:${DEJAVU_IMAGE_VERSION}"
+    restart: 'unless-stopped'
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
     expose:
       - '1358'
     networks:
-      - 'elk_core'
+      - 'elk-core'
       - 'services'
 
   elastalert:
-    image: "${ELASTALERT_IMAGE}:${ELASTALERT_VERSION}"
+    image: "${ELASTALERT_IMAGE_NAME}:${ELASTALERT_IMAGE_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
     expose:
       - '3030'
       - '3333'
     networks:
-      - 'elk_core'
+      - 'elk-core'
     volumes:
       - 'elastalert_data:/opt/elastalert/server_data'
       - './elastalert/config/config.json:/opt/elastalert/config.json'
@@ -51,13 +68,9 @@ services:
       - './elastalert/rule_templates:/opt/elastalert/rule_templates'
 
   elastichq:
-    image: "${ELASTICHQ_IMAGE}:${ELASTICHQ_VERSION}"
+    image: "${ELASTICHQ_IMAGE_NAME}:${ELASTICHQ_IMAGE_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
     environment:
@@ -65,7 +78,7 @@ services:
     expose:
       - '5000'
     networks:
-      - 'elk_core'
+      - 'elk-core'
       - 'services'
     volumes:
       - 'elastichq_data:/src/db'
@@ -74,18 +87,15 @@ services:
     build:
       context: './elasticsearch/'
       args:
+        ELK_ELASTICSEARCH_IMAGE_NAME: "${ELK_ELASTICSEARCH_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     env_file:
       - './env/elasticsearch.env'
     networks:
-      - 'elk_core'
-      - 'elk_node'
+      - 'elk-core'
+      - 'elk-node'
       - 'services'
     ports:
       - "${LISTEN_IP_ADDRESS}:9200:9200"
@@ -95,19 +105,15 @@ services:
       - 'elasticsearch_data:/usr/share/elasticsearch/data'
 
   elasticsearch_exporter:
-    image: "${ELASTICSEARCH_EXPORTER_IMAGE}:${ELASTICSEARCH_EXPORTER_VERSION}"
+    image: "${ELASTICSEARCH_EXPORTER_IMAGE_NAME}:${ELASTICSEARCH_EXPORTER_IMAGE_VERSION}"
     command:
-      - '-es.uri=http://elasticsearch:9200'
+      - '--es.uri=http://elasticsearch:9200'
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
     networks:
-      - 'elk_core'
+      - 'elk-core'
     ports:
       - "${LISTEN_IP_ADDRESS}:9108:9108"
 
@@ -115,20 +121,17 @@ services:
     build:
       context: './logstash/'
       args:
+        ELK_LOGSTASH_IMAGE_NAME: "${ELK_LOGSTASH_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
     env_file:
       - './env/logstash.env'
     networks:
-      - 'elk_core'
-      - 'elk_node'
+      - 'elk-core'
+      - 'elk-node'
       - 'services'
     ports:
       - "${LISTEN_IP_ADDRESS}:5000:5000"
@@ -141,25 +144,22 @@ services:
     build:
       context: './kibana/'
       args:
+        ELK_KIBANA_IMAGE_NAME: "${ELK_KIBANA_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
         KIBANA_PLUGIN_ELASTALERT_VERSION: "${KIBANA_PLUGIN_ELASTALERT_VERSION}"
         KIBANA_PLUGIN_ENHANCED_TABLE_VERSION: "${KIBANA_PLUGIN_ENHANCED_TABLE_VERSION}"
         KIBANA_PLUGIN_LOGTRAIL_VERSION: "${KIBANA_PLUGIN_LOGTRAIL_VERSION}"
         KIBANA_PLUGIN_WAZUH_VERSION: "${KIBANA_PLUGIN_WAZUH_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
       - 'logstash'
     expose:
       - '5601'
     networks:
-      - 'elk_core'
-      - 'elk_node'
+      - 'elk-core'
+      - 'elk-node'
       - 'services'
     ports:
       - "${LISTEN_IP_ADDRESS}:5601:5601"
@@ -167,16 +167,14 @@ services:
       - './kibana/config/:/usr/share/kibana/config:ro'
 
   wazuh:
-    image: "${WAZUH_IMAGE}:${WAZUH_VERSION}"
+    image: "${WAZUH_IMAGE_NAME}:${WAZUH_IMAGE_VERSION}"
     restart: 'unless-stopped'
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: "${LOGGING_MAX_SIZE}"
-        max-file: "${LOGGING_MAX_FILE}"
+    logging: *default-logging
     depends_on:
       - 'elasticsearch'
       - 'logstash'
+    env_file:
+      - './env/wazuh.env'
     expose:
       - '514/udp'
       - '1514/udp'
@@ -184,17 +182,16 @@ services:
       - '1516/tcp'
       - '55000/tcp'
     networks:
-      elk_core:
+      elk-core:
         aliases:
-          - 'elk_core.wazuh'
-      elk_node:
+          - 'elk-core.wazuh'
+      elk-node:
         aliases:
-          - 'elk_node.wazuh'
+          - 'elk-node.wazuh'
       services:
         aliases:
           - 'services.wazuh'
     volumes:
-      - './wazuh/config/filebeat.yml:/etc/filebeat/filebeat.yml:ro'
       - 'wazuh_filebeat_lib:/var/lib/filebeat'
       - 'wazuh_filebeat_log:/var/log/filebeat'
       - 'wazuh_ossec_data:/var/ossec/data'
