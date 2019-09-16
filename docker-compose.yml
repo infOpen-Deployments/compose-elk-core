@@ -19,6 +19,24 @@ networks:
       name: 'services'
 
 services:
+  apm_server:
+    build:
+      context: './apm_server/'
+      args:
+        ELK_APM_SERVER_IMAGE_NAME: "${ELK_APM_SERVER_IMAGE_NAME}"
+        ELK_VERSION: "${ELK_VERSION}"
+    restart: 'unless-stopped'
+    logging: *default-logging
+    expose:
+      - '8200'
+    networks:
+      - 'elk-core'
+      - 'services'
+    ports:
+      - "${LISTEN_IP_ADDRESS}:8200:8200"
+    volumes:
+      - './apm_server/config/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro'
+
   dejavu:
     image: "${DEJAVU_IMAGE_NAME}:${DEJAVU_IMAGE_VERSION}"
     restart: 'unless-stopped'
@@ -69,6 +87,7 @@ services:
     build:
       context: './elasticsearch/'
       args:
+        ELK_ELASTICSEARCH_IMAGE_NAME: "${ELK_ELASTICSEARCH_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
     logging: *default-logging
@@ -102,6 +121,7 @@ services:
     build:
       context: './logstash/'
       args:
+        ELK_LOGSTASH_IMAGE_NAME: "${ELK_LOGSTASH_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
     restart: 'unless-stopped'
     logging: *default-logging
@@ -124,6 +144,7 @@ services:
     build:
       context: './kibana/'
       args:
+        ELK_KIBANA_IMAGE_NAME: "${ELK_KIBANA_IMAGE_NAME}"
         ELK_VERSION: "${ELK_VERSION}"
         KIBANA_PLUGIN_ELASTALERT_VERSION: "${KIBANA_PLUGIN_ELASTALERT_VERSION}"
         KIBANA_PLUGIN_ENHANCED_TABLE_VERSION: "${KIBANA_PLUGIN_ENHANCED_TABLE_VERSION}"
