@@ -1,0 +1,11 @@
+---
+
+client-id: 'dejavu'
+client-secret: 'c3934400-5cf4-424b-80f6-d730f12dba53'
+discovery-url: 'http://192.168.1.85:8080/auth/realms/test'
+redirection-url: 'http://dejavu.localhost/'
+enable-default-deny: true
+encryption_key: AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j
+listen: 0.0.0.0:3000
+upstream-url: http://dejavu:1358
+secure-cookie: false

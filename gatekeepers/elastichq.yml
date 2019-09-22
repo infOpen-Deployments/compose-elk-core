@@ -1,0 +1,11 @@
+---
+
+client-id: 'elastichq'
+client-secret: 'afeaaaf2-9ec8-4ced-8995-0cd00c98151a'
+discovery-url: 'http://192.168.1.85:8080/auth/realms/test'
+redirection-url: 'http://elastichq.localhost/'
+enable-default-deny: true
+encryption_key: AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j
+listen: 0.0.0.0:3000
+upstream-url: http://elastichq:5000
+secure-cookie: false
