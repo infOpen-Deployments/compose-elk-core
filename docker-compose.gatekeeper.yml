@@ -1,0 +1,53 @@
+---
+
+version: '3.4'
+
+x-logging:
+  &default-logging
+  driver: 'json-file'
+  options:
+    max-size: "${LOGGING_MAX_SIZE}"
+    max-file: "${LOGGING_MAX_FILE}"
+
+services:
+  dejavu_gatekeeper:
+    image: "${KEYCLOAK_GATEKEEPER_IMAGE_NAME}:${KEYCLOAK_GATEKEEPER_IMAGE_VERSION}"
+    command:
+      - '--config=/etc/gatekeeper.yml'
+    restart: 'unless-stopped'
+    logging: *default-logging
+    expose:
+      - '3000'
+    networks:
+      - 'elk-core'
+      - 'services'
+    volumes:
+      - './gatekeepers/dejavu.yml:/etc/gatekeeper.yml'
+
+  elastichq_gatekeeper:
+    image: "${KEYCLOAK_GATEKEEPER_IMAGE_NAME}:${KEYCLOAK_GATEKEEPER_IMAGE_VERSION}"
+    command:
+      - '--config=/etc/gatekeeper.yml'
+    restart: 'unless-stopped'
+    logging: *default-logging
+    expose:
+      - '3000'
+    networks:
+      - 'elk-core'
+      - 'services'
+    volumes:
+      - './gatekeepers/elastichq.yml:/etc/gatekeeper.yml'
+
+  kibana_gatekeeper:
+    image: "${KEYCLOAK_GATEKEEPER_IMAGE_NAME}:${KEYCLOAK_GATEKEEPER_IMAGE_VERSION}"
+    command:
+      - '--config=/etc/gatekeeper.yml'
+    restart: 'unless-stopped'
+    logging: *default-logging
+    expose:
+      - '3000'
+    networks:
+      - 'elk-core'
+      - 'services'
+    volumes:
+      - './gatekeepers/kibana.yml:/etc/gatekeeper.yml'

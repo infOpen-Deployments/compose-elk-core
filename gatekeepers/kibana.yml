@@ -1,0 +1,11 @@
+---
+
+client-id: 'kibana'
+client-secret: '5d264e32-91a6-4a44-854e-1f5c7f1c0b38'
+discovery-url: 'http://192.168.1.85:8080/auth/realms/test'
+redirection-url: 'http://kibana.localhost/'
+enable-default-deny: true
+encryption_key: AgXa7xRcoClDEU0ZDSH4X0XhL5Qy2Z2j
+listen: 0.0.0.0:3000
+upstream-url: http://kibana:5601
+secure-cookie: false
